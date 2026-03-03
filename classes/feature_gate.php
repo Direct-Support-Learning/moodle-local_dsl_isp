@@ -154,12 +154,13 @@ class feature_gate {
     public static function get_all_tenant_settings(): array {
         global $DB;
 
-        $sql = "SELECT ts.id, ts.tenantid, ts.enabled, ts.enabledby, ts.timeenabled, ts.timemodified,
-                       t.name AS tenantname,
+        $sql = "SELECT t.id, t.name AS tenantname,
+                       ts.id AS settingsid, ts.enabled, ts.enabledby, ts.timeenabled, ts.timemodified,
                        u.firstname AS enabledbyfirstname, u.lastname AS enabledbylastname
                   FROM {tool_tenant} t
              LEFT JOIN {dsl_isp_tenant_settings} ts ON ts.tenantid = t.id
              LEFT JOIN {user} u ON u.id = ts.enabledby
+                 WHERE t.archived = 0
               ORDER BY t.name ASC";
 
         return $DB->get_records_sql($sql);

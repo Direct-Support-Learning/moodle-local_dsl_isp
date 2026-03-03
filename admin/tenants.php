@@ -110,7 +110,7 @@ foreach ($tenants as $tenant) {
     if ($isenabled) {
         $disableurl = new moodle_url($pageurl, [
             'action' => 'disable',
-            'tenantid' => $tenant->tenantid,
+            'tenantid' => $tenant->id,
             'sesskey' => sesskey(),
         ]);
         $actions[] = html_writer::link(
@@ -121,7 +121,7 @@ foreach ($tenants as $tenant) {
     } else {
         $enableurl = new moodle_url($pageurl, [
             'action' => 'enable',
-            'tenantid' => $tenant->tenantid,
+            'tenantid' => $tenant->id,
             'sesskey' => sesskey(),
         ]);
         $actions[] = html_writer::link(
