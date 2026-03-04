@@ -29,7 +29,7 @@ $capabilities = [
     // View ISP Manager and client list.
     'local/dsl_isp:view' => [
         'captype' => 'read',
-        'contextlevel' => CONTEXT_SYSTEM,
+        'contextlevel' => CONTEXT_USER,
         'archetypes' => [
             'manager' => CAP_ALLOW,
         ],
@@ -38,7 +38,7 @@ $capabilities = [
     // Add, edit, archive clients.
     'local/dsl_isp:manageclients' => [
         'captype' => 'write',
-        'contextlevel' => CONTEXT_SYSTEM,
+        'contextlevel' => CONTEXT_USER,
         'archetypes' => [
             'manager' => CAP_ALLOW,
         ],
@@ -48,7 +48,7 @@ $capabilities = [
     // Assign and remove DSPs from clients.
     'local/dsl_isp:managedsps' => [
         'captype' => 'write',
-        'contextlevel' => CONTEXT_SYSTEM,
+        'contextlevel' => CONTEXT_USER,
         'archetypes' => [
             'manager' => CAP_ALLOW,
         ],
@@ -57,7 +57,7 @@ $capabilities = [
     // Manually reset a DSP's course completion.
     'local/dsl_isp:resetcompletion' => [
         'captype' => 'write',
-        'contextlevel' => CONTEXT_SYSTEM,
+        'contextlevel' => CONTEXT_USER,
         'archetypes' => [
             'manager' => CAP_ALLOW,
         ],
@@ -67,7 +67,7 @@ $capabilities = [
     // View historical completion log.
     'local/dsl_isp:viewhistory' => [
         'captype' => 'read',
-        'contextlevel' => CONTEXT_SYSTEM,
+        'contextlevel' => CONTEXT_USER,
         'archetypes' => [
             'manager' => CAP_ALLOW,
         ],

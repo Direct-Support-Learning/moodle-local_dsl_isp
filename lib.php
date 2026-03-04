@@ -38,8 +38,11 @@ function local_dsl_isp_extend_navigation(global_navigation $navigation): void {
     }
 
     // Check if user has view capability.
-    $context = context_system::instance();
-    if (!has_capability('local/dsl_isp:view', $context)) {
+    // Check both system context (for site admins) and user context (for tenant admins).
+    $systemcontext = context_system::instance();
+    $usercontext = context_user::instance($USER->id);
+    if (!has_capability('local/dsl_isp:view', $systemcontext) &&
+        !has_capability('local/dsl_isp:view', $usercontext)) {
         return;
     }
 
