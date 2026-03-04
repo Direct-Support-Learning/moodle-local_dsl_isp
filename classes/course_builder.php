@@ -129,6 +129,10 @@ class course_builder {
     /**
      * Create a new ISP course from the template.
      *
+     * Uses Moodle's internal duplicate_course function to copy the template course.
+     * Temporarily elevates to admin context for the duplication since tenant admins
+     * cannot access the cross-tenant template course directly.
+     *
      * @param string $coursename The name for the new course.
      * @param int $startdate The course start date (anniversary date).
      * @param int $tenantid The tenant ID.
@@ -136,9 +140,15 @@ class course_builder {
      * @throws moodle_exception On failure.
      */
     public function create_course_from_template(string $coursename, int $startdate, int $tenantid): int {
-        global $DB;
+        global $DB, $CFG, $USER;
+
+        require_once($CFG->dirroot . '/course/lib.php');
+        require_once($CFG->dirroot . '/course/externallib.php');
 
         $templateid = $this->get_template_course_id();
+
+        // Verify template course exists.
+        $templatecourse = $DB->get_record('course', ['id' => $templateid], '*', MUST_EXIST);
 
         // Generate unique shortname.
         $shortname = $this->generate_unique_shortname($coursename);
@@ -146,39 +156,65 @@ class course_builder {
         // Get or create the ISP category for this tenant.
         $categoryid = $this->get_or_create_isp_category($tenantid);
 
-        // Use core web service to duplicate course.
-        $params = [
-            'courseid' => $templateid,
-            'fullname' => $coursename,
-            'shortname' => $shortname,
-            'categoryid' => $categoryid,
-            'visible' => 1,
-            'options' => [
-                ['name' => 'users', 'value' => 0],
-                ['name' => 'activities', 'value' => 1],
-                ['name' => 'blocks', 'value' => 1],
-                ['name' => 'filters', 'value' => 1],
-                ['name' => 'questionbank', 'value' => 0],
-                ['name' => 'competencies', 'value' => 0],
-            ],
-        ];
+        // Use Moodle's duplicate_course function directly.
+        // We need to temporarily give the user the required capabilities.
+        $context = context_course::instance($templateid);
+        
+        // Store original user for restoration.
+        $originaluser = $USER;
+        
+        try {
+            // Get a site admin to perform the duplication.
+            $admins = get_admins();
+            $admin = reset($admins);
+            
+            if (!$admin) {
+                throw new moodle_exception('error_coursecreationfailed', 'local_dsl_isp', '', null, 'No admin user found');
+            }
 
-        $result = external_api::call_external_function(
-            'core_course_duplicate_course',
-            $params,
-            false
-        );
+            // Temporarily switch to admin user for the duplication.
+            \core\session\manager::set_user($admin);
 
-        if (!empty($result['error'])) {
-            throw new moodle_exception('error_coursecreationfailed', 'local_dsl_isp', '', null, $result['exception']->message ?? '');
+            // Call duplicate_course directly.
+            $newcourse = \duplicate_course(
+                $templateid,
+                $coursename,
+                $shortname,
+                $categoryid,
+                1, // visible
+                [
+                    'users' => 0,
+                    'activities' => 1,
+                    'blocks' => 1,
+                    'filters' => 1,
+                    'role_assignments' => 0,
+                    'comments' => 0,
+                    'userscompletion' => 0,
+                    'logs' => 0,
+                    'grade_histories' => 0,
+                ]
+            );
+
+            // Restore original user.
+            \core\session\manager::set_user($originaluser);
+
+            if (!$newcourse || empty($newcourse->id)) {
+                throw new moodle_exception('error_coursecreationfailed', 'local_dsl_isp');
+            }
+
+            $newcourseid = $newcourse->id;
+
+        } catch (\Exception $e) {
+            // Ensure we restore the original user even on failure.
+            \core\session\manager::set_user($originaluser);
+            throw new moodle_exception('error_coursecreationfailed', 'local_dsl_isp', '', null, $e->getMessage());
         }
 
-        $newcourseid = $result['data']['id'];
-
         // Update course start date.
-        $this->update_course_settings($newcourseid, [
-            'startdate' => $startdate,
-        ]);
+        $DB->set_field('course', 'startdate', $startdate, ['id' => $newcourseid]);
+
+        // Rebuild course cache.
+        rebuild_course_cache($newcourseid, true);
 
         return $newcourseid;
     }

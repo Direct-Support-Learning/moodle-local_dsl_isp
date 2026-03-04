@@ -168,7 +168,7 @@ class client_form extends moodleform {
 
         // For optional slots, add a checkbox to include.
         if (!$slot['required']) {
-            $mform->addElement('checkbox', "{$slotname}_include", '', get_string('includedocument', 'local_dsl_isp'));
+            $mform->addElement('checkbox', "{$slotname}_include", $label, get_string('includedocument', 'local_dsl_isp'));
             $mform->setDefault("{$slotname}_include", 0);
         }
 
@@ -179,7 +179,9 @@ class client_form extends moodleform {
             'maxfiles' => 1,
         ];
 
-        $mform->addElement('filepicker', "{$slotname}_file", $label, null, $fileoptions);
+        // For required slots, show the label on the file picker. For optional, label is on the checkbox.
+        $filelabel = $slot['required'] ? $label : '';
+        $mform->addElement('filepicker', "{$slotname}_file", $filelabel, null, $fileoptions);
         $mform->setType("{$slotname}_file", PARAM_FILE);
 
         if ($slot['required']) {
@@ -200,8 +202,7 @@ class client_form extends moodleform {
         }
 
         // Document date field.
-        $mform->addElement('text', "{$slotname}_date", get_string('documentdate', 'local_dsl_isp'), ['size' => 20]);
-        $mform->setType("{$slotname}_date", PARAM_TEXT);
+        $mform->addElement('date_selector', "{$slotname}_date", get_string('documentdate', 'local_dsl_isp'), ['optional' => false]);
 
         if ($slot['required']) {
             $mform->addRule("{$slotname}_date", get_string('error_documentdaterequired', 'local_dsl_isp'), 'required');
@@ -375,7 +376,7 @@ class client_form extends moodleform {
             $documents[$index] = [
                 'file' => $file,
                 'name' => $data->$namekey ?? $slot['name'],
-                'date' => $data->$datekey ?? '',
+                'date' => !empty($data->$datekey) ? userdate($data->$datekey, '%m/%d/%Y') : '',
             ];
         }
 
