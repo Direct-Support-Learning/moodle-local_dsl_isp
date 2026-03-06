@@ -156,22 +156,21 @@ class course_builder {
         // Get or create the ISP category for this tenant.
         $categoryid = $this->get_or_create_isp_category($tenantid);
 
-        // Use Moodle's duplicate_course function directly.
-        // We need to temporarily give the user the required capabilities.
-        $context = context_course::instance($templateid);
-        
-        // Store original user for restoration.
-        $originaluser = $USER;
-        
-        try {
-            // Get a site admin to perform the duplication.
-            $admins = get_admins();
-            $admin = reset($admins);
-            
-            if (!$admin) {
-                throw new moodle_exception('error_coursecreationfailed', 'local_dsl_isp', '', null, 'No admin user found');
-            }
+        // Store original user ID for restoration (not reference - $USER is global).
+        $originaluserid = (int)$USER->id;
 
+        // Get a site admin to perform the duplication.
+        $admins = get_admins();
+        $admin = reset($admins);
+
+        if (!$admin) {
+            throw new moodle_exception('error_coursecreationfailed', 'local_dsl_isp', '', null, 'No admin user found');
+        }
+
+        $newcourseid = null;
+        $error = null;
+
+        try {
             // Temporarily switch to admin user for the duplication.
             \core\session\manager::set_user($admin);
 
@@ -195,19 +194,25 @@ class course_builder {
                 ]
             );
 
-            // Restore original user.
-            \core\session\manager::set_user($originaluser);
-
             if (!$newcourse || empty($newcourse->id)) {
-                throw new moodle_exception('error_coursecreationfailed', 'local_dsl_isp');
+                $error = 'Course duplication returned empty result';
+            } else {
+                $newcourseid = $newcourse->id;
             }
 
-            $newcourseid = $newcourse->id;
-
         } catch (\Exception $e) {
-            // Ensure we restore the original user even on failure.
-            \core\session\manager::set_user($originaluser);
-            throw new moodle_exception('error_coursecreationfailed', 'local_dsl_isp', '', null, $e->getMessage());
+            $error = $e->getMessage();
+        } finally {
+            // ALWAYS restore original user, no matter what.
+            $originaluser = $DB->get_record('user', ['id' => $originaluserid]);
+            if ($originaluser) {
+                \core\session\manager::set_user($originaluser);
+            }
+        }
+
+        // Now throw exception if there was an error (after user is restored).
+        if ($error !== null) {
+            throw new moodle_exception('error_coursecreationfailed', 'local_dsl_isp', '', null, $error);
         }
 
         // Update course start date.
