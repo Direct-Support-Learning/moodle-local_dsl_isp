@@ -21,6 +21,7 @@ defined('MOODLE_INTERNAL') || die();
 require_once($CFG->libdir . '/formslib.php');
 
 use moodleform;
+use html_writer;
 use local_dsl_isp\course_builder;
 
 /**

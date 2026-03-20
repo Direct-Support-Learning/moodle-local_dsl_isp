@@ -38,8 +38,14 @@ $completionstatus = optional_param('completionstatus', '', PARAM_ALPHA);
 // Authentication and authorization.
 require_login();
 
-$context = context_system::instance();
-require_capability('local/dsl_isp:view', $context);
+$systemcontext = context_system::instance();
+$usercontext = context_user::instance($USER->id);
+
+// Check capability in either context.
+if (!has_capability('local/dsl_isp:view', $systemcontext) &&
+    !has_capability('local/dsl_isp:view', $usercontext)) {
+    throw new required_capability_exception($systemcontext, 'local/dsl_isp:view', 'nopermissions', '');
+}
 
 // Get tenant ID and verify feature is enabled.
 $tenantid = feature_gate::get_current_tenant_id();
@@ -57,7 +63,7 @@ $pageurl = new moodle_url('/local/dsl_isp/index.php', [
 ]);
 
 $PAGE->set_url($pageurl);
-$PAGE->set_context($context);
+$PAGE->set_context($systemcontext);
 $PAGE->set_pagelayout('standard');
 $PAGE->set_title(get_string('clientlisttitle', 'local_dsl_isp'));
 $PAGE->set_heading(get_string('clientlistheading', 'local_dsl_isp'));

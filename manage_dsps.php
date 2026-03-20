@@ -40,8 +40,14 @@ $userid = optional_param('userid', 0, PARAM_INT);
 // Authentication and authorization.
 require_login();
 
-$context = context_system::instance();
-require_capability('local/dsl_isp:managedsps', $context);
+$systemcontext = context_system::instance();
+$usercontext = context_user::instance($USER->id);
+
+// Check capability in either context.
+if (!has_capability('local/dsl_isp:managedsps', $systemcontext) &&
+    !has_capability('local/dsl_isp:managedsps', $usercontext)) {
+    throw new required_capability_exception($systemcontext, 'local/dsl_isp:managedsps', 'nopermissions', '');
+}
 
 // Get tenant ID and verify feature is enabled.
 $tenantid = feature_gate::get_current_tenant_id();
@@ -62,7 +68,7 @@ $clienturl = new moodle_url('/local/dsl_isp/client.php', ['id' => $clientid, 'ac
 
 // Page setup.
 $PAGE->set_url($pageurl);
-$PAGE->set_context($context);
+$PAGE->set_context($systemcontext);
 $PAGE->set_pagelayout('standard');
 
 // Handle actions.
@@ -76,7 +82,10 @@ switch ($action) {
         break;
 
     case 'reset':
-        require_capability('local/dsl_isp:resetcompletion', $context);
+        if (!has_capability('local/dsl_isp:resetcompletion', $systemcontext) &&
+            !has_capability('local/dsl_isp:resetcompletion', $usercontext)) {
+            throw new required_capability_exception($systemcontext, 'local/dsl_isp:resetcompletion', 'nopermissions', '');
+        }
         local_dsl_isp_handle_dsp_reset_action($client, $userid, $tenantid, $clienturl);
         break;
 

@@ -40,8 +40,14 @@ $action = optional_param('action', 'view', PARAM_ALPHA);
 // Authentication and authorization.
 require_login();
 
-$context = context_system::instance();
-require_capability('local/dsl_isp:view', $context);
+$systemcontext = context_system::instance();
+$usercontext = context_user::instance($USER->id);
+
+// Check capability in either context.
+if (!has_capability('local/dsl_isp:view', $systemcontext) &&
+    !has_capability('local/dsl_isp:view', $usercontext)) {
+    throw new required_capability_exception($systemcontext, 'local/dsl_isp:view', 'nopermissions', '');
+}
 
 // Get tenant ID and verify feature is enabled.
 $tenantid = feature_gate::get_current_tenant_id();
@@ -56,7 +62,10 @@ $mgr = new manager($tenantid);
 // Determine required capability based on action.
 $requiresmanage = in_array($action, ['add', 'edit', 'documents', 'archive', 'unarchive']);
 if ($requiresmanage) {
-    require_capability('local/dsl_isp:manageclients', $context);
+    if (!has_capability('local/dsl_isp:manageclients', $systemcontext) &&
+        !has_capability('local/dsl_isp:manageclients', $usercontext)) {
+        throw new required_capability_exception($systemcontext, 'local/dsl_isp:manageclients', 'nopermissions', '');
+    }
 }
 
 // Load client if ID provided.
@@ -73,7 +82,7 @@ $indexurl = new moodle_url('/local/dsl_isp/index.php');
 
 // Page setup.
 $PAGE->set_url($pageurl);
-$PAGE->set_context($context);
+$PAGE->set_context($systemcontext);
 $PAGE->set_pagelayout('standard');
 
 // Handle actions.
@@ -115,7 +124,7 @@ switch ($action) {
         if (!$client) {
             throw new moodle_exception('error_clientnotfound', 'local_dsl_isp');
         }
-        local_dsl_isp_handle_view_action($client, $tenantid, $context);
+        local_dsl_isp_handle_view_action($client, $tenantid, $systemcontext, $usercontext);
         break;
 }
 
@@ -343,20 +352,25 @@ function local_dsl_isp_handle_unarchive_action(manager $mgr, stdClass $client, m
  *
  * @param stdClass $client The client record.
  * @param int $tenantid The tenant ID.
- * @param context $context The context.
+ * @param context $systemcontext The system context.
+ * @param context $usercontext The user context.
  */
-function local_dsl_isp_handle_view_action(stdClass $client, int $tenantid, context $context): void {
+function local_dsl_isp_handle_view_action(stdClass $client, int $tenantid, context $systemcontext, context $usercontext): void {
     global $PAGE, $OUTPUT;
 
     $clientname = $client->firstname . ' ' . $client->lastname;
     $PAGE->set_title($clientname);
     $PAGE->set_heading($clientname);
 
-    // Check capabilities.
-    $canmanageclients = has_capability('local/dsl_isp:manageclients', $context);
-    $canmanagedsps = has_capability('local/dsl_isp:managedsps', $context);
-    $canresetcompletion = has_capability('local/dsl_isp:resetcompletion', $context);
-    $canviewhistory = has_capability('local/dsl_isp:viewhistory', $context);
+    // Check capabilities (either context).
+    $canmanageclients = has_capability('local/dsl_isp:manageclients', $systemcontext) ||
+                        has_capability('local/dsl_isp:manageclients', $usercontext);
+    $canmanagedsps = has_capability('local/dsl_isp:managedsps', $systemcontext) ||
+                     has_capability('local/dsl_isp:managedsps', $usercontext);
+    $canresetcompletion = has_capability('local/dsl_isp:resetcompletion', $systemcontext) ||
+                          has_capability('local/dsl_isp:resetcompletion', $usercontext);
+    $canviewhistory = has_capability('local/dsl_isp:viewhistory', $systemcontext) ||
+                      has_capability('local/dsl_isp:viewhistory', $usercontext);
 
     // Initialize AMD module for DSP assignment interactions.
     if ($canmanagedsps) {

@@ -71,9 +71,15 @@ class search_users extends external_api {
         ]);
 
         // Check context and capability.
-        $context = context_system::instance();
-        self::validate_context($context);
-        require_capability('local/dsl_isp:managedsps', $context);
+        // Check both system context (for site admins) and user context (for tenant admins).
+        $systemcontext = \context_system::instance();
+        $usercontext = \context_user::instance($USER->id);
+        self::validate_context($systemcontext);
+        
+        if (!has_capability('local/dsl_isp:managedsps', $systemcontext) &&
+            !has_capability('local/dsl_isp:managedsps', $usercontext)) {
+            throw new \required_capability_exception($systemcontext, 'local/dsl_isp:managedsps', 'nopermissions', '');
+        }
 
         // Verify user is in the requested tenant.
         if (!feature_gate::user_in_tenant($USER->id, $params['tenantid'])) {

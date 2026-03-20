@@ -61,6 +61,7 @@ $string['statuscomplete'] = 'Complete';
 $string['statusinprogress'] = 'In progress';
 $string['statusoverdue'] = 'Overdue';
 $string['statusnotstarted'] = 'Not started';
+$string['of'] = 'of';
 $string['clientcount'] = '{$a->count} client(s)';
 $string['dspcount'] = '{$a->completed} of {$a->total} DSPs completed';
 $string['planyear'] = 'Plan year: {$a->start} – {$a->end}';
