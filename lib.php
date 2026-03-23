@@ -63,8 +63,6 @@ function local_dsl_isp_extend_navigation(global_navigation $navigation): void {
         new pix_icon('i/folder', '')
     );
 
-    $node->showinflatnavigation = true;
-
     // Add to the navigation.
     $navigation->add_node($node);
 }
