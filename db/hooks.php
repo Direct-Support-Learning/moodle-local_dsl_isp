@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Plugin version and dependency information.
+ * Hook callbacks for ISP Manager.
  *
  * @package    local_dsl_isp
  * @copyright  2026 Direct Support Learning
@@ -24,13 +24,10 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2026032300;
-$plugin->requires  = 2024100700; // Moodle 4.5.
-$plugin->component = 'local_dsl_isp';
-$plugin->maturity  = MATURITY_STABLE;
-$plugin->release   = '1.0.4';
-
-$plugin->dependencies = [
-    'local_recompletion' => ANY_VERSION,
-    'tool_tenant' => ANY_VERSION,
+$callbacks = [
+    [
+        'hook' => \core\hook\navigation\primary_extend::class,
+        'callback' => \local_dsl_isp\hook_callbacks::class . '::extend_primary_navigation',
+        'priority' => 500,
+    ],
 ];

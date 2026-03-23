@@ -80,7 +80,8 @@ $result = $mgr->get_clients(
 );
 
 // Check capabilities.
-$canmanage = has_capability('local/dsl_isp:manageclients', $context);
+$canmanage = has_capability('local/dsl_isp:manageclients', $systemcontext) ||
+             has_capability('local/dsl_isp:manageclients', $usercontext);
 
 // Create renderable.
 $clientlist = new client_list(
