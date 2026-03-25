@@ -49,7 +49,7 @@ class hook_callbacks {
             return;
         }
 
-        $hook->get_primarynav()->add(
+        $hook->get_primaryview()->add(
             get_string('ispmanager', 'local_dsl_isp'),
             new \moodle_url('/local/dsl_isp/index.php'),
             \navigation_node::TYPE_CUSTOM,
