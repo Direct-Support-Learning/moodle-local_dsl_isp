@@ -142,7 +142,6 @@ class course_builder {
     public function create_course_from_template(string $coursename, int $startdate, int $tenantid): int {
         global $DB, $CFG, $USER;
 
-        require_once($CFG->dirroot . '/course/lib.php');
         require_once($CFG->dirroot . '/course/externallib.php');
 
         $templateid = $this->get_template_course_id();
@@ -174,30 +173,30 @@ class course_builder {
             // Temporarily switch to admin user for the duplication.
             \core\session\manager::set_user($admin);
 
-            // Call duplicate_course directly.
-            $newcourse = \duplicate_course(
+            // Duplicate the template course via the stable external API.
+            $result = \core_course_external::duplicate_course(
                 $templateid,
                 $coursename,
                 $shortname,
                 $categoryid,
                 1, // visible
                 [
-                    'users' => 0,
-                    'activities' => 1,
-                    'blocks' => 1,
-                    'filters' => 1,
-                    'role_assignments' => 0,
-                    'comments' => 0,
-                    'userscompletion' => 0,
-                    'logs' => 0,
-                    'grade_histories' => 0,
+                    ['name' => 'users',            'value' => '0'],
+                    ['name' => 'activities',       'value' => '1'],
+                    ['name' => 'blocks',           'value' => '1'],
+                    ['name' => 'filters',          'value' => '1'],
+                    ['name' => 'role_assignments', 'value' => '0'],
+                    ['name' => 'comments',         'value' => '0'],
+                    ['name' => 'userscompletion',  'value' => '0'],
+                    ['name' => 'logs',             'value' => '0'],
+                    ['name' => 'grade_histories',  'value' => '0'],
                 ]
             );
 
-            if (!$newcourse || empty($newcourse->id)) {
+            if (empty($result['id'])) {
                 $error = 'Course duplication returned empty result';
             } else {
-                $newcourseid = $newcourse->id;
+                $newcourseid = (int) $result['id'];
             }
 
         } catch (\Exception $e) {

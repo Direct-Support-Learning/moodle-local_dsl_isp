@@ -55,11 +55,17 @@ define(['core/ajax'], function(Ajax) {
      *
      * @param {string} selector The selector for the autocomplete element.
      * @param {string} query The search query.
-     * @param {Function} callback The callback to call with results.
+     * @param {Function} success Success callback.
+     * @param {Function} failure Failure callback.
      */
-    var transport = function(selector, query, callback) {
-        // Get the form element to find tenant ID and client ID.
-        var form = document.querySelector(selector).closest('form');
+    var transport = function(selector, query, success, failure) {
+        var element = document.querySelector(selector);
+        if (!element) {
+            success([]);
+            return;
+        }
+
+        var form = element.closest('form');
         var tenantId = 0;
         var clientId = 0;
 
@@ -75,13 +81,16 @@ define(['core/ajax'], function(Ajax) {
             }
         }
 
-        // If we don't have a tenant ID, we can't search.
         if (!tenantId) {
-            callback([]);
+            success([]);
             return;
         }
 
-        // Make the AJAX call.
+        if (!query || query.length < 2) {
+            success([]);
+            return;
+        }
+
         var request = {
             methodname: 'local_dsl_isp_search_users',
             args: {
@@ -94,102 +103,15 @@ define(['core/ajax'], function(Ajax) {
 
         Ajax.call([request])[0]
             .then(function(results) {
-                callback(processResults(selector, results));
+                success(processResults(selector, results));
             })
-            .catch(function() {
-                // On error, return empty results.
-                callback([]);
+            .catch(function(error) {
+                failure(error);
             });
     };
 
-    // Export the transport function.
-    // This is the format expected by Moodle's autocomplete element.
     return {
-        /**
-         * List of requests to make.
-         */
-        list: {
-            /**
-             * Process search results.
-             *
-             * @param {string} selector The selector.
-             * @param {Object} data The data from the server.
-             * @return {Array} The processed results.
-             */
-            processResults: processResults,
-
-            /**
-             * Transport function for AJAX requests.
-             *
-             * @param {string} selector The selector.
-             * @param {string} query The search query.
-             * @param {Function} success Success callback.
-             * @param {Function} failure Failure callback.
-             */
-            transport: function(selector, query, success, failure) {
-                // Get the form element to find tenant ID and client ID.
-                var element = document.querySelector(selector);
-                if (!element) {
-                    success([]);
-                    return;
-                }
-
-                var form = element.closest('form');
-                var tenantId = 0;
-                var clientId = 0;
-
-                if (form) {
-                    var tenantInput = form.querySelector('input[name="tenantid"]');
-                    var clientInput = form.querySelector('input[name="clientid"]');
-
-                    if (tenantInput) {
-                        tenantId = parseInt(tenantInput.value, 10) || 0;
-                    }
-                    if (clientInput) {
-                        clientId = parseInt(clientInput.value, 10) || 0;
-                    }
-                }
-
-                // If we don't have a tenant ID, we can't search.
-                if (!tenantId) {
-                    success([]);
-                    return;
-                }
-
-                // Minimum query length.
-                if (!query || query.length < 2) {
-                    success([]);
-                    return;
-                }
-
-                // Make the AJAX call.
-                var request = {
-                    methodname: 'local_dsl_isp_search_users',
-                    args: {
-                        tenantid: tenantId,
-                        clientid: clientId,
-                        search: query,
-                        limit: 20
-                    }
-                };
-
-                Ajax.call([request])[0]
-                    .then(function(results) {
-                        var processed = [];
-                        if (results && results.users) {
-                            results.users.forEach(function(user) {
-                                processed.push({
-                                    value: user.id,
-                                    label: user.fullname + ' (' + user.email + ')'
-                                });
-                            });
-                        }
-                        success(processed);
-                    })
-                    .catch(function(error) {
-                        failure(error);
-                    });
-            }
-        }
+        processResults: processResults,
+        transport: transport
     };
 });
