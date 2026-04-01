@@ -103,7 +103,7 @@ define(['core/ajax'], function(Ajax) {
 
         Ajax.call([request])[0]
             .then(function(results) {
-                success(processResults(selector, results));
+                success(results);
             })
             .catch(function(error) {
                 failure(error);
