@@ -100,5 +100,54 @@
         <INDEX NAME="ix_tenantid" UNIQUE="true" FIELDS="tenantid"/>
       </INDEXES>
     </TABLE>
+    <TABLE NAME="dsl_isp_document" COMMENT="One row per document slot per client. Tracks the PDF stored in the private isp_documents filearea and the activity link in the course.">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="clientid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="FK: dsl_isp_client.id"/>
+        <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="FK: course.id"/>
+        <FIELD NAME="slot" TYPE="int" LENGTH="2" NOTNULL="true" SEQUENCE="false" COMMENT="Document slot index (1-8)"/>
+        <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" COMMENT="Document display name"/>
+        <FIELD NAME="filedate" TYPE="char" LENGTH="50" NOTNULL="false" SEQUENCE="false" COMMENT="Document date string"/>
+        <FIELD NAME="filename" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="Original filename of the stored PDF"/>
+        <FIELD NAME="itemid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Equals this record id. Used as itemid in local_dsl_isp/isp_documents filearea."/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Unix timestamp"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Unix timestamp"/>
+        <FIELD NAME="uploadedby" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="FK: user.id"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="fk_clientid" TYPE="foreign" FIELDS="clientid" REFTABLE="dsl_isp_client" REFFIELDS="id"/>
+        <KEY NAME="fk_courseid" TYPE="foreign" FIELDS="courseid" REFTABLE="course" REFFIELDS="id"/>
+        <KEY NAME="fk_uploadedby" TYPE="foreign" FIELDS="uploadedby" REFTABLE="user" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="ix_clientid" UNIQUE="false" FIELDS="clientid"/>
+        <INDEX NAME="ix_clientid_slot" UNIQUE="true" FIELDS="clientid, slot"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="dsl_isp_doc_views" COMMENT="Audit log of every document viewing session. Used for PHI tracing via watermark data.">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="documentid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="FK: dsl_isp_document.id"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="The viewer's user ID"/>
+        <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="The course context for this view"/>
+        <FIELD NAME="tenantid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Viewer tenant ID (denormalized)"/>
+        <FIELD NAME="viewername" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" COMMENT="Viewer full name at time of view (snapshot)"/>
+        <FIELD NAME="vieweremail" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" COMMENT="Viewer email at time of view (snapshot)"/>
+        <FIELD NAME="tenantname" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" COMMENT="Tenant name at time of view (snapshot)"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Unix timestamp of the viewing event"/>
+        <FIELD NAME="useragent" TYPE="char" LENGTH="512" NOTNULL="false" SEQUENCE="false" COMMENT="Browser user agent string"/>
+        <FIELD NAME="ipaddress" TYPE="char" LENGTH="45" NOTNULL="false" SEQUENCE="false" COMMENT="Viewer IP address"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="ix_documentid_timecreated" UNIQUE="false" FIELDS="documentid, timecreated"/>
+        <INDEX NAME="ix_userid_timecreated" UNIQUE="false" FIELDS="userid, timecreated"/>
+        <INDEX NAME="ix_tenantid_timecreated" UNIQUE="false" FIELDS="tenantid, timecreated"/>
+      </INDEXES>
+    </TABLE>
   </TABLES>
 </XMLDB>

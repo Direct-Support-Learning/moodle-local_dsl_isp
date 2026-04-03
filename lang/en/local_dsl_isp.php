@@ -36,6 +36,8 @@ $string['dsl_isp:resetcompletion'] = 'Manually reset DSP course completion';
 $string['dsl_isp:viewhistory'] = 'View historical completion log';
 $string['dsl_isp:managetenants'] = 'Enable/disable ISP Manager per tenant';
 $string['dsl_isp:managetemplates'] = 'Configure template course and global settings';
+$string['dsl_isp:viewdocuments'] = 'View ISP documents in the secure PDF viewer';
+$string['dsl_isp:managedocuments'] = 'Upload, replace, and delete ISP documents';
 
 // Navigation.
 $string['ispmanager'] = 'ISP Manager';
@@ -181,6 +183,8 @@ $string['gap'] = 'Not completed';
 
 // Admin settings.
 $string['settings'] = 'ISP Manager settings';
+$string['logretentiondays'] = 'View log retention (days)';
+$string['logretentiondays_desc'] = 'Number of days to retain document view log records. Records older than this will be deleted by the daily cleanup task. Default is 365.';
 $string['templatecourseid'] = 'Template course ID';
 $string['templatecourseid_desc'] = 'The course ID of the global ISP template course. This course is duplicated for each new client.';
 $string['studentroleid'] = 'Student role ID';
@@ -220,9 +224,23 @@ $string['eventclientrenewed'] = 'Client renewed';
 $string['eventcompletionmanuallyreset'] = 'Completion manually reset';
 $string['eventdocumentsupdated'] = 'Documents updated';
 
+// PDF Viewer.
+$string['documentviewer'] = 'Document viewer';
+$string['viewdocument'] = 'View document';
+$string['pdf_load_error'] = 'Failed to load document. Please try again or contact support.';
+$string['page_of'] = 'Page';
+$string['pdf_zoom_in'] = 'Zoom in';
+$string['pdf_zoom_out'] = 'Zoom out';
+$string['pdf_fit_width'] = 'Fit to width';
+$string['pdf_prev_page'] = 'Previous page';
+$string['pdf_next_page'] = 'Next page';
+$string['pdf_page_input_label'] = 'Go to page';
+
 // Scheduled task.
 $string['task_annualrenewal'] = 'ISP annual renewal';
 $string['task_annualrenewal_desc'] = 'Archives completion data and resets course completion for clients whose ISP anniversary date falls on the current date.';
+$string['task_cleanupviewlogs'] = 'ISP document view log cleanup';
+$string['task_cleanupviewlogs_desc'] = 'Prunes old records from the document view log table per the configured retention period.';
 $string['renewalprocessed'] = 'Annual renewal processed for {$a->count} client(s).';
 $string['renewalskipped'] = 'No clients due for renewal today.';
 $string['renewalerror'] = 'Error processing renewal for client {$a->clientid}: {$a->error}';
@@ -263,6 +281,14 @@ $string['error_tenantnotfound'] = 'Your organization could not be determined. Pl
 $string['error_permissiondenied'] = 'You do not have permission to perform this action.';
 
 // Privacy.
+$string['privacy:metadata:dsl_isp_document'] = 'Stores document metadata per slot per client, including who uploaded the document.';
+$string['privacy:metadata:dsl_isp_document:uploadedby'] = 'The user who uploaded this document.';
+$string['privacy:metadata:dsl_isp_doc_views'] = 'Audit log of document viewing events, including viewer identity and session information for PHI tracing.';
+$string['privacy:metadata:dsl_isp_doc_views:userid'] = 'The user who viewed the document.';
+$string['privacy:metadata:dsl_isp_doc_views:viewername'] = 'The viewer\'s full name at the time of viewing (snapshot).';
+$string['privacy:metadata:dsl_isp_doc_views:vieweremail'] = 'The viewer\'s email address at the time of viewing (snapshot).';
+$string['privacy:metadata:dsl_isp_doc_views:ipaddress'] = 'The viewer\'s IP address at the time of viewing.';
+$string['privacy:metadata:dsl_isp_doc_views:useragent'] = 'The viewer\'s browser user agent string at the time of viewing.';
 $string['privacy:metadata:dsl_isp_client'] = 'Stores IDD client information including names and service types.';
 $string['privacy:metadata:dsl_isp_client:firstname'] = 'The client\'s first name.';
 $string['privacy:metadata:dsl_isp_client:lastname'] = 'The client\'s last name.';

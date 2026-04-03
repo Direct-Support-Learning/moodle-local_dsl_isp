@@ -108,20 +108,7 @@ class manager {
                 $this->tenantid
             );
 
-            // Replace document placeholders.
-            foreach ($documents as $slotindex => $docdata) {
-                if (!empty($docdata['file'])) {
-                    $coursebuilder->replace_document(
-                        $courseid,
-                        $slotindex,
-                        $docdata['file'],
-                        $docdata['name'],
-                        $docdata['date']
-                    );
-                }
-            }
-
-            // Insert client record.
+            // Insert client record first so we have a clientid for the document table.
             $now = time();
             $client = new stdClass();
             $client->tenantid = $this->tenantid;
@@ -136,6 +123,20 @@ class manager {
             $client->usermodified = $USER->id;
 
             $client->id = $DB->insert_record('dsl_isp_client', $client);
+
+            // Replace document placeholders (now we have $client->id for the document table).
+            foreach ($documents as $slotindex => $docdata) {
+                if (!empty($docdata['file'])) {
+                    $coursebuilder->replace_document(
+                        $client->id,
+                        $courseid,
+                        $slotindex,
+                        $docdata['file'],
+                        $docdata['name'],
+                        $docdata['date']
+                    );
+                }
+            }
 
             // Assign DSPs.
             $enrollmentmanager = new enrollment_manager();

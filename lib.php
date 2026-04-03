@@ -144,9 +144,56 @@ function local_dsl_isp_pluginfile(
     bool $forcedownload,
     array $options = []
 ): bool {
-    // This plugin doesn't serve files directly.
-    // Documents are stored in course file areas managed by mod_resource.
-    return false;
+    global $DB;
+
+    if ($filearea !== 'isp_documents') {
+        return false;
+    }
+
+    require_login();
+
+    // The first arg is itemid (= dsl_isp_document.id), the second is filename.
+    $docid = (int) array_shift($args);
+    $filename = array_shift($args);
+
+    if (empty($docid)) {
+        return false;
+    }
+
+    // Load the document record.
+    $document = $DB->get_record('dsl_isp_document', ['id' => $docid]);
+    if (!$document) {
+        return false;
+    }
+
+    // Load the client to get course context for capability check.
+    $client = $DB->get_record('dsl_isp_client', ['id' => $document->clientid]);
+    if (!$client) {
+        return false;
+    }
+
+    $coursecontext = context_course::instance($client->courseid);
+
+    if (!is_enrolled($coursecontext) || !has_capability('local/dsl_isp:viewdocuments', $coursecontext)) {
+        return false;
+    }
+
+    $fs = get_file_storage();
+    $file = $fs->get_file(
+        context_system::instance()->id,
+        'local_dsl_isp',
+        'isp_documents',
+        $document->itemid,
+        '/',
+        $document->filename
+    );
+
+    if (!$file || $file->is_directory()) {
+        return false;
+    }
+
+    send_stored_file($file, null, 0, false, $options);
+    return true;
 }
 
 /**

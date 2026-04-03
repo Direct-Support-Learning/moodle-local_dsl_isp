@@ -1,0 +1,71 @@
+{{!
+    @template local_dsl_isp/document_viewer
+
+    PHI-protected PDF viewer canvas.
+
+    No <object>, <embed>, or <iframe> elements. The PDF is rendered page-by-page
+    onto an HTML canvas by the document_viewer AMD module. The watermark is
+    composited directly into the canvas pixels after each page render.
+
+    Context variables:
+    - docname: string - Document display name.
+    - docid: int - dsl_isp_document record ID.
+}}
+<div class="local-dsl-isp-document-viewer" id="dsl-isp-pdf-viewer">
+
+    {{! Toolbar }}
+    <div class="pdf-toolbar d-flex flex-wrap align-items-center mb-2 p-2 bg-light border rounded">
+        <span class="pdf-doc-name font-weight-bold mr-3">{{docname}}</span>
+
+        <div class="btn-group mr-3" role="group" aria-label="{{#str}}page_of, local_dsl_isp{{/str}}">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="dsl-isp-prev-page"
+                    disabled aria-label="{{#str}}pdf_prev_page, local_dsl_isp{{/str}}">
+                {{#pix}}t/left, core{{/pix}}
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="dsl-isp-next-page"
+                    disabled aria-label="{{#str}}pdf_next_page, local_dsl_isp{{/str}}">
+                {{#pix}}t/right, core{{/pix}}
+            </button>
+        </div>
+
+        <span class="mr-1">{{#str}}page_of, local_dsl_isp{{/str}}</span>
+        <input type="number" id="dsl-isp-page-num" class="form-control form-control-sm mr-1"
+               style="width: 4.5rem;" value="1" min="1"
+               aria-label="{{#str}}pdf_page_input_label, local_dsl_isp{{/str}}">
+        <span class="mr-3">/ <span id="dsl-isp-page-count">–</span></span>
+
+        <div class="btn-group" role="group" aria-label="Zoom">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="dsl-isp-zoom-out"
+                    aria-label="{{#str}}pdf_zoom_out, local_dsl_isp{{/str}}">
+                {{#pix}}t/minus, core{{/pix}}
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="dsl-isp-fit-width"
+                    aria-label="{{#str}}pdf_fit_width, local_dsl_isp{{/str}}">
+                {{#pix}}t/expand, core{{/pix}}
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="dsl-isp-zoom-in"
+                    aria-label="{{#str}}pdf_zoom_in, local_dsl_isp{{/str}}">
+                {{#pix}}t/add, core{{/pix}}
+            </button>
+        </div>
+    </div>
+
+    {{! Canvas container — overflow allows scrolling for large pages }}
+    <div id="dsl-isp-canvas-container" class="pdf-canvas-container"
+         style="overflow: auto; border: 1px solid #ccc; background: #525659; text-align: center; padding: 8px;">
+        <canvas id="dsl-isp-pdf-canvas"
+                style="display: block; margin: 0 auto; user-select: none; -webkit-user-select: none; max-width: 100%;"></canvas>
+    </div>
+
+    {{! Loading indicator }}
+    <div id="dsl-isp-pdf-loading" class="text-center py-4">
+        <div class="spinner-border text-secondary" role="status">
+            <span class="sr-only">{{#str}}loading, local_dsl_isp{{/str}}</span>
+        </div>
+        <p class="mt-2 text-muted">{{#str}}loading, local_dsl_isp{{/str}}</p>
+    </div>
+
+    {{! Error zone (hidden by default) }}
+    <div id="dsl-isp-pdf-error" class="alert alert-danger mt-3 d-none" role="alert"></div>
+
+</div>

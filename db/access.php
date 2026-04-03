@@ -89,4 +89,24 @@ $capabilities = [
         'riskbitmask' => RISK_CONFIG,
     ],
 
+    // View ISP documents through the secure PDF viewer.
+    'local/dsl_isp:viewdocuments' => [
+        'captype' => 'read',
+        'contextlevel' => CONTEXT_COURSE,
+        'archetypes' => [
+            'student' => CAP_ALLOW,
+            'manager' => CAP_ALLOW,
+        ],
+    ],
+
+    // Upload, replace, and delete ISP documents.
+    'local/dsl_isp:managedocuments' => [
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_COURSE,
+        'archetypes' => [
+            'manager' => CAP_ALLOW,
+        ],
+        'riskbitmask' => RISK_DATALOSS,
+    ],
+
 ];

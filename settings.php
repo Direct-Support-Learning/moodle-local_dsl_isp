@@ -67,6 +67,15 @@ if ($hassiteconfig) {
         PARAM_EMAIL
     ));
 
+    // View log retention period.
+    $settings->add(new admin_setting_configtext(
+        'local_dsl_isp/log_retention_days',
+        get_string('logretentiondays', 'local_dsl_isp'),
+        get_string('logretentiondays_desc', 'local_dsl_isp'),
+        '365',
+        PARAM_INT
+    ));
+
     // Add link to tenant management page.
     $ADMIN->add('localplugins', new admin_externalpage(
         'local_dsl_isp_tenants',

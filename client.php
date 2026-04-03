@@ -267,6 +267,7 @@ function local_dsl_isp_handle_documents_action(manager $mgr, stdClass $client, i
             try {
                 foreach ($documents as $slotindex => $docdata) {
                     $coursebuilder->replace_document(
+                        $client->id,
                         $client->courseid,
                         $slotindex,
                         $docdata['file'],

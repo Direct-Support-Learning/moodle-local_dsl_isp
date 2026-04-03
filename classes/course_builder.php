@@ -21,6 +21,7 @@ use moodle_exception;
 use stored_file;
 use context_course;
 use context_module;
+use context_system;
 use core_external\external_api;
 
 /**
@@ -260,23 +261,28 @@ class course_builder {
     }
 
     /**
-     * Replace a document in a course's file resource.
+     * Replace a document in a course's document slot.
      *
+     * Stores the PDF in the private isp_documents filearea, upserts the dsl_isp_document
+     * record, and ensures the course has a URL activity pointing to the secure viewer.
+     *
+     * @param int $clientid The client ID (FK dsl_isp_client).
      * @param int $courseid The course ID.
      * @param int $slotindex The document slot index (1-8).
-     * @param stored_file $newfile The new file to use.
-     * @param string $documentname The document name for the custom field.
-     * @param string $documentdate The document date for the custom field.
+     * @param stored_file $newfile The new file to store.
+     * @param string $documentname The document display name.
+     * @param string $documentdate The document date string.
      * @return bool True on success.
      */
     public function replace_document(
+        int $clientid,
         int $courseid,
         int $slotindex,
         stored_file $newfile,
         string $documentname,
         string $documentdate
     ): bool {
-        global $DB;
+        global $DB, $CFG, $USER;
 
         if (!isset(self::DOCUMENT_SLOTS[$slotindex])) {
             throw new moodle_exception('error_documentreplacefailed', 'local_dsl_isp');
@@ -284,17 +290,43 @@ class course_builder {
 
         $slot = self::DOCUMENT_SLOTS[$slotindex];
 
-        // Find the resource activity for this slot.
-        $cm = $this->find_resource_by_slot($courseid, $slotindex);
+        // Upsert the document record and get its ID (= itemid for the filearea).
+        $documentid = $this->upsert_document_record(
+            $clientid,
+            $courseid,
+            $slotindex,
+            $documentname,
+            $documentdate,
+            $newfile->get_filename(),
+            $USER->id
+        );
 
-        if (!$cm) {
-            throw new moodle_exception('error_documentreplacefailed', 'local_dsl_isp');
+        // Store the file in the private filearea.
+        $this->store_document_file($newfile, $documentid);
+
+        // Build the viewer URL.
+        $viewurl = $CFG->wwwroot . '/local/dsl_isp/view_document.php?docid=' . $documentid;
+
+        // Find any existing activity for this slot.
+        $cm = $this->find_activity_by_slot($courseid, $slot['shortname']);
+
+        if ($cm !== null && $cm->modulename === 'resource') {
+            // Migrate: delete the old File activity, create a URL activity.
+            require_once($CFG->dirroot . '/course/lib.php');
+            course_delete_module($cm->id);
+            $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
+            $this->create_url_activity($course, $documentname, $viewurl, $slot['shortname']);
+        } else if ($cm !== null && $cm->modulename === 'url') {
+            // Update existing URL activity to point to the new document.
+            $DB->set_field('url', 'externalurl', $viewurl, ['id' => $cm->instance]);
+            $DB->set_field('url', 'name', $documentname, ['id' => $cm->instance]);
+        } else {
+            // No existing activity — create a new URL activity.
+            $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
+            $this->create_url_activity($course, $documentname, $viewurl, $slot['shortname']);
         }
 
-        // Replace the file in the resource.
-        $this->replace_resource_file($cm, $newfile);
-
-        // Update the custom course field.
+        // Update the custom course field (legacy metadata, kept for compatibility).
         $fieldvalue = trim($documentname . ' ' . $documentdate);
         $this->update_course_custom_field($courseid, $slot['fieldname'], $fieldvalue);
 
@@ -302,59 +334,180 @@ class course_builder {
     }
 
     /**
-     * Find the resource activity module for a document slot.
+     * Upsert a dsl_isp_document record for a given client/slot combination.
      *
-     * @param int $courseid The course ID.
-     * @param int $slotindex The slot index.
-     * @return stdClass|null The course module record or null.
+     * On insert: creates the record and then sets itemid = id (self-referencing itemid).
+     * On update: updates metadata, clears old file, keeps existing itemid (= document id).
+     *
+     * @param int $clientid Client ID.
+     * @param int $courseid Course ID.
+     * @param int $slot Slot index.
+     * @param string $name Document display name.
+     * @param string $filedate Document date string.
+     * @param string $filename Original filename.
+     * @param int $uploadedby User ID of uploader.
+     * @return int The document record ID (also the filearea itemid).
      */
-    protected function find_resource_by_slot(int $courseid, int $slotindex): ?stdClass {
+    protected function upsert_document_record(
+        int $clientid,
+        int $courseid,
+        int $slot,
+        string $name,
+        string $filedate,
+        string $filename,
+        int $uploadedby
+    ): int {
         global $DB;
 
-        $slot = self::DOCUMENT_SLOTS[$slotindex];
+        $existing = $DB->get_record('dsl_isp_document', ['clientid' => $clientid, 'slot' => $slot]);
 
-        // Resources are identified by their idnumber matching the slot shortname.
-        $sql = "SELECT cm.*
+        $now = time();
+
+        if ($existing) {
+            // Delete old stored file before overwriting.
+            $fs = get_file_storage();
+            $fs->delete_area_files(
+                context_system::instance()->id,
+                'local_dsl_isp',
+                'isp_documents',
+                $existing->itemid
+            );
+
+            $existing->name = $name;
+            $existing->filedate = $filedate;
+            $existing->filename = $filename;
+            $existing->timemodified = $now;
+            $existing->uploadedby = $uploadedby;
+            $DB->update_record('dsl_isp_document', $existing);
+
+            return (int) $existing->id;
+        }
+
+        // Insert new record.
+        $record = new stdClass();
+        $record->clientid = $clientid;
+        $record->courseid = $courseid;
+        $record->slot = $slot;
+        $record->name = $name;
+        $record->filedate = $filedate;
+        $record->filename = $filename;
+        $record->itemid = 0; // Placeholder — updated below.
+        $record->timecreated = $now;
+        $record->timemodified = $now;
+        $record->uploadedby = $uploadedby;
+
+        $id = $DB->insert_record('dsl_isp_document', $record);
+
+        // Set itemid to equal the record's own ID.
+        $DB->set_field('dsl_isp_document', 'itemid', $id, ['id' => $id]);
+
+        return (int) $id;
+    }
+
+    /**
+     * Store a PDF file in the private isp_documents filearea.
+     *
+     * Files are stored at context_system under local_dsl_isp/isp_documents with itemid
+     * equal to the dsl_isp_document record ID. Any existing file at that itemid is
+     * replaced (handled by upsert_document_record before calling this).
+     *
+     * @param stored_file $newfile The source file to copy.
+     * @param int $documentid The dsl_isp_document record ID (used as itemid).
+     * @return stored_file The newly created stored file.
+     */
+    protected function store_document_file(stored_file $newfile, int $documentid): stored_file {
+        $fs = get_file_storage();
+
+        $filerecord = [
+            'contextid' => context_system::instance()->id,
+            'component' => 'local_dsl_isp',
+            'filearea'  => 'isp_documents',
+            'itemid'    => $documentid,
+            'filepath'  => '/',
+            'filename'  => $newfile->get_filename(),
+        ];
+
+        return $fs->create_file_from_storedfile($filerecord, $newfile);
+    }
+
+    /**
+     * Find a course module for a document slot by its idnumber.
+     *
+     * Searches both mod_resource and mod_url activities.
+     *
+     * @param int $courseid The course ID.
+     * @param string $idnumber The slot shortname used as cm.idnumber.
+     * @return stdClass|null The cm record with a 'modulename' property, or null.
+     */
+    protected function find_activity_by_slot(int $courseid, string $idnumber): ?stdClass {
+        global $DB;
+
+        $sql = "SELECT cm.*, m.name AS modulename
                   FROM {course_modules} cm
                   JOIN {modules} m ON m.id = cm.module
-                  JOIN {resource} r ON r.id = cm.instance
                  WHERE cm.course = :courseid
-                   AND m.name = 'resource'
-                   AND cm.idnumber = :idnumber";
+                   AND cm.idnumber = :idnumber
+                   AND m.name IN ('resource', 'url')";
 
         $cm = $DB->get_record_sql($sql, [
             'courseid' => $courseid,
-            'idnumber' => $slot['shortname'],
+            'idnumber' => $idnumber,
         ]);
 
         return $cm ?: null;
     }
 
     /**
-     * Replace the file in a resource activity.
+     * Create a URL activity in a course pointing to the secure document viewer.
      *
-     * @param stdClass $cm The course module record.
-     * @param stored_file $newfile The new file.
+     * @param stdClass $course The course record.
+     * @param string $name The activity display name.
+     * @param string $url The external URL to link to.
+     * @param string $idnumber The cm idnumber (slot shortname) to set for future lookups.
+     * @return stdClass The created course module record.
      */
-    protected function replace_resource_file(stdClass $cm, stored_file $newfile): void {
-        $fs = get_file_storage();
-        $context = context_module::instance($cm->id);
+    protected function create_url_activity(stdClass $course, string $name, string $url, string $idnumber): stdClass {
+        global $DB, $CFG;
 
-        // Delete existing files in the resource file area.
-        $fs->delete_area_files($context->id, 'mod_resource', 'content');
+        require_once($CFG->dirroot . '/course/modlib.php');
 
-        // Create the new file record.
-        $filerecord = [
-            'contextid' => $context->id,
-            'component' => 'mod_resource',
-            'filearea' => 'content',
-            'itemid' => 0,
-            'filepath' => '/',
-            'filename' => $newfile->get_filename(),
-        ];
+        $moduleid = $DB->get_field('modules', 'id', ['name' => 'url'], MUST_EXIST);
 
-        // Copy the file to the resource area.
-        $fs->create_file_from_storedfile($filerecord, $newfile);
+        $moduleinfo = new stdClass();
+        $moduleinfo->modulename = 'url';
+        $moduleinfo->module = $moduleid;
+        $moduleinfo->name = $name;
+        $moduleinfo->externalurl = $url;
+        $moduleinfo->display = 0; // RESOURCELIB_DISPLAY_OPEN — open in same frame.
+        $moduleinfo->course = $course->id;
+        $moduleinfo->section = 0;
+        $moduleinfo->visible = 1;
+        $moduleinfo->idnumber = $idnumber;
+
+        [$cm] = add_moduleinfo($moduleinfo, $course);
+
+        // Verify idnumber was saved; set it explicitly if not.
+        $savedidnumber = $DB->get_field('course_modules', 'idnumber', ['id' => $cm->id]);
+        if ($savedidnumber !== $idnumber) {
+            $DB->set_field('course_modules', 'idnumber', $idnumber, ['id' => $cm->id]);
+        }
+
+        return $cm;
+    }
+
+    /**
+     * Get the dsl_isp_document record for a given client and slot.
+     *
+     * @param int $clientid The client ID.
+     * @param int $slotindex The slot index (1-8).
+     * @return stdClass|null The document record or null if not found.
+     */
+    public function get_document_record(int $clientid, int $slotindex): ?stdClass {
+        global $DB;
+
+        $record = $DB->get_record('dsl_isp_document', ['clientid' => $clientid, 'slot' => $slotindex]);
+
+        return $record ?: null;
     }
 
     /**
@@ -463,17 +616,21 @@ class course_builder {
     /**
      * Get document information for a course's document slots.
      *
+     * Prefers the dsl_isp_document table (new system) for file metadata.
+     * Falls back to the mod_resource filearea for legacy records not yet migrated.
+     *
      * @param int $courseid The course ID.
+     * @param int|null $clientid Client ID for new-system lookups (optional).
      * @return array Array of document slot data.
      */
-    public function get_course_documents(int $courseid): array {
+    public function get_course_documents(int $courseid, ?int $clientid = null): array {
         global $DB;
 
         $documents = [];
+        $fs = get_file_storage();
+        $syscontextid = context_system::instance()->id;
 
         foreach (self::DOCUMENT_SLOTS as $index => $slot) {
-            $cm = $this->find_resource_by_slot($courseid, $index);
-
             $docinfo = [
                 'slot' => $index,
                 'name' => $slot['name'],
@@ -484,19 +641,38 @@ class course_builder {
                 'filesize' => null,
                 'timemodified' => null,
                 'fieldvalue' => null,
+                'documentid' => null,
             ];
 
-            if ($cm) {
-                $context = context_module::instance($cm->id);
-                $fs = get_file_storage();
-                $files = $fs->get_area_files($context->id, 'mod_resource', 'content', 0, 'sortorder', false);
+            // Check the new dsl_isp_document table first.
+            if ($clientid !== null) {
+                $docrec = $DB->get_record('dsl_isp_document', ['clientid' => $clientid, 'slot' => $index]);
+                if ($docrec && !empty($docrec->itemid)) {
+                    $files = $fs->get_area_files($syscontextid, 'local_dsl_isp', 'isp_documents', $docrec->itemid, '', false);
+                    if (!empty($files)) {
+                        $file = reset($files);
+                        $docinfo['hasfile'] = true;
+                        $docinfo['filename'] = $file->get_filename();
+                        $docinfo['filesize'] = $file->get_filesize();
+                        $docinfo['timemodified'] = $file->get_timemodified();
+                        $docinfo['documentid'] = (int) $docrec->id;
+                    }
+                }
+            }
 
-                if (!empty($files)) {
-                    $file = reset($files);
-                    $docinfo['hasfile'] = true;
-                    $docinfo['filename'] = $file->get_filename();
-                    $docinfo['filesize'] = $file->get_filesize();
-                    $docinfo['timemodified'] = $file->get_timemodified();
+            // Fall back to legacy mod_resource filearea if no new-system record.
+            if (!$docinfo['hasfile']) {
+                $cm = $this->find_activity_by_slot($courseid, $slot['shortname']);
+                if ($cm && $cm->modulename === 'resource') {
+                    $context = context_module::instance($cm->id);
+                    $files = $fs->get_area_files($context->id, 'mod_resource', 'content', 0, 'sortorder', false);
+                    if (!empty($files)) {
+                        $file = reset($files);
+                        $docinfo['hasfile'] = true;
+                        $docinfo['filename'] = $file->get_filename();
+                        $docinfo['filesize'] = $file->get_filesize();
+                        $docinfo['timemodified'] = $file->get_timemodified();
+                    }
                 }
             }
 
