@@ -121,7 +121,6 @@
         <KEY NAME="fk_uploadedby" TYPE="foreign" FIELDS="uploadedby" REFTABLE="user" REFFIELDS="id"/>
       </KEYS>
       <INDEXES>
-        <INDEX NAME="ix_clientid" UNIQUE="false" FIELDS="clientid"/>
         <INDEX NAME="ix_clientid_slot" UNIQUE="true" FIELDS="clientid, slot"/>
       </INDEXES>
     </TABLE>

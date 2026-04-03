@@ -57,7 +57,6 @@ function xmldb_local_dsl_isp_upgrade(int $oldversion): bool {
         $table->add_key('fk_courseid', XMLDB_KEY_FOREIGN, ['courseid'], 'course', ['id']);
         $table->add_key('fk_uploadedby', XMLDB_KEY_FOREIGN, ['uploadedby'], 'user', ['id']);
 
-        $table->add_index('ix_clientid', XMLDB_INDEX_NOTUNIQUE, ['clientid']);
         $table->add_index('ix_clientid_slot', XMLDB_INDEX_UNIQUE, ['clientid', 'slot']);
 
         if (!$dbman->table_exists($table)) {
