@@ -211,13 +211,11 @@ class client_form extends moodleform {
         }
 
         // Add a note about the date being read from the document.
+        // Note: hideIf is not used on this static element because Moodle's dependency
+        // manager cannot observe static elements, causing a MutationObserver TypeError.
         $mform->addElement('static', "{$slotname}_datehelp", '',
             '<small class="text-muted">' . get_string('datereadfromdoc', 'local_dsl_isp') . '</small>'
         );
-
-        if (!$slot['required']) {
-            $mform->hideIf("{$slotname}_datehelp", "{$slotname}_include", 'notchecked');
-        }
     }
 
     /**

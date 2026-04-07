@@ -154,10 +154,11 @@ class document_update_form extends moodleform {
         $mform->hideIf("{$slotname}_date", "{$slotname}_replace", 'notchecked');
 
         // Date help text.
+        // Note: hideIf is not used on this static element because Moodle's dependency
+        // manager cannot observe static elements, causing a MutationObserver TypeError.
         $mform->addElement('static', "{$slotname}_datehelp", '',
             '<small class="text-muted">' . get_string('datereadfromdoc', 'local_dsl_isp') . '</small>'
         );
-        $mform->hideIf("{$slotname}_datehelp", "{$slotname}_replace", 'notchecked');
     }
 
     /**
