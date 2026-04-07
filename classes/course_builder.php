@@ -194,10 +194,12 @@ class course_builder {
                 ]
             );
 
-            if (empty($result['id'])) {
+            // duplicate_course returns stdClass when called internally, array via web service.
+            $resultid = is_object($result) ? ($result->id ?? null) : ($result['id'] ?? null);
+            if (empty($resultid)) {
                 $error = 'Course duplication returned empty result';
             } else {
-                $newcourseid = (int) $result['id'];
+                $newcourseid = (int) $resultid;
             }
 
         } catch (\Exception $e) {

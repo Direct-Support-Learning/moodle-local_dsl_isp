@@ -24,11 +24,11 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2026040700;
+$plugin->version   = 2026040701;
 $plugin->requires  = 2024100700; // Moodle 4.5.
 $plugin->component = 'local_dsl_isp';
 $plugin->maturity  = MATURITY_STABLE;
-$plugin->release   = '1.1.2';
+$plugin->release   = '1.1.3';
 
 $plugin->dependencies = [
     'local_recompletion' => ANY_VERSION,
